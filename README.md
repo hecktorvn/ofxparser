@@ -4,6 +4,8 @@ OFX Parser
 ## This is a fork of [okonst/ofxparser](https://github.com/okonst/ofxparser)
 
 Added support PHP 8
+Remove Investment Support
+Fix depreciation and refactor
 
 --------------------
 
@@ -41,45 +43,7 @@ Most common nodes are support. If you come across an inaccessible node in your O
 
 ## Investments Support
 
-Investments look much different than bank / credit card transactions. This version supports a subset of the nodes in the OFX 2.0.3 spec, per the immediate needs of the author(s). You may want to reference the OFX documentation if you choose to implement this library. In particular, this does not currently process investment positions (INVPOSLIST) or referenced security definitions (SECINFO).
-
-This is not a pure pass-through of fields, such as this implementation in python: [csingley/ofxtools](https://github.com/csingley/ofxtools). This package contains fields that have been "translated" on occasion to make it more friendly to those less-familiar with the investments OFX spec.
-
-To load investments from a Quicken (QFX) file or a MS Money (OFX / XML) file:
-
-```php
-// You'll probably want to alias the namespace:
-use OfxParser\Entities\Investment as InvEntities;
-
-// Load the OFX file
-$ofxParser = new \OfxParser\Parsers\Investment();
-$ofx = $ofxParser->loadFromFile('/path/to/your/investments_file.ofx');
-
-// Loop over investment accounts (named bankAccounts from base lib)
-foreach ($ofx->bankAccounts as $accountData) {
-    // Loop over transactions
-    foreach ($accountData->statement->transactions as $ofxEntity) {
-        // Keep in mind... not all properties are inherited for all transaction types...
-
-        // Maybe you'll want to do something based on the transaction properties:
-        $nodeName = $ofxEntity->nodeName;
-        if ($nodeName == 'BUYSTOCK') {
-            // @see OfxParser\Entities\Investment\Transaction...
-
-            $amount = abs($ofxEntity->total);
-            $cusip = $ofxEntity->securityId;
-
-            // ...
-        }
-
-        // Maybe you'll want to do something based on the entity:
-        if ($ofxEntity instanceof InvEntities\Transaction\BuyStock) {
-            // ...
-        }
-
-    }
-}
-```
+Investments support was remove in this version. Please refer to original package : [okonst/ofxparser](https://github.com/okonst/ofxparser)
 
 ## Fork & Credits
 
