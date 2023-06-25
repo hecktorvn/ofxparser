@@ -1,9 +1,9 @@
 OFX Parser
 =================
 
-## This is a fork of [asgrim/ofxparser](https://github.com/asgrim/ofxparser) with extended transaction fields.
+## This is a fork of [okonst/ofxparser](https://github.com/okonst/ofxparser)
 
-Added support of extended OFX transaction fields: PAYEEID, REFNUM, EXTDNAME, PAYEE, BANKACCTTO, CCACCTTO.
+Added support PHP 8
 
 --------------------
 
@@ -16,7 +16,7 @@ It supports multiple Bank Accounts, the required "Sign On" response, and recogni
 Simply require the package using [Composer](https://getcomposer.org/):
 
 ```bash
-$ composer require asgrim/ofxparser
+$ composer require oriatec/ofxparser
 ```
 
 ## Usage
@@ -83,5 +83,5 @@ foreach ($ofx->bankAccounts as $accountData) {
 
 ## Fork & Credits
 
-This is a fork of [grimfor/ofxparser](https://github.com/Grimfor/ofxparser) made to be framework independent. The source repo was designed for Symfony 2 framework, so credit should be given where credit due!
+This is a fork of [okonst/ofxparser](https://github.com/okonst/ofxparser), itself forked of [grimfor/ofxparser](https://github.com/Grimfor/ofxparser) made to be framework independent. The source repo was designed for Symfony 2 framework, so credit should be given where credit due!
 Heavily refactored by [Oliver Lowe](https://github.com/loweoj) and loosely based on the ruby [ofx-parser by Andrew A. Smith](https://github.com/aasmith/ofx-parser).

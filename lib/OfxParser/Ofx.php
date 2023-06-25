@@ -3,7 +3,6 @@
 namespace OfxParser;
 
 use SimpleXMLElement;
-use OfxParser\Utils;
 use OfxParser\Entities\AccountInfo;
 use OfxParser\Entities\BankAccount;
 use OfxParser\Entities\Institute;
@@ -11,7 +10,6 @@ use OfxParser\Entities\SignOn;
 use OfxParser\Entities\Statement;
 use OfxParser\Entities\Status;
 use OfxParser\Entities\Transaction;
-use OfxParser\Entities\Payee;
 
 /**
  * The OFX object
@@ -29,50 +27,23 @@ use OfxParser\Entities\Payee;
  */
 class Ofx
 {
-    /**
-     * @var Header[]
-     */
-    public $header = [];
-
-    /**
-     * @var SignOn
-     */
+    public $header;
     public $signOn;
-
-    /**
-     * @var AccountInfo[]
-     */
     public $signupAccountInfo;
-
-    /**
-     * @var BankAccount[]
-     */
     public $bankAccounts = [];
-
-    /**
-     * Only populated if there is only one bank account
-     * @var BankAccount|null
-     * @deprecated This will be removed in future versions
-     */
     public $bankAccount;
+    public $investment;
 
     /**
      * @param SimpleXMLElement $xml
-     * @throws \Exception
      */
     public function __construct(SimpleXMLElement $xml)
     {
         $this->signOn = $this->buildSignOn($xml->SIGNONMSGSRSV1->SONRS);
         $this->signupAccountInfo = $this->buildAccountInfo($xml->SIGNUPMSGSRSV1->ACCTINFOTRNRS);
-
-        if (isset($xml->BANKMSGSRSV1)) {
-            $this->bankAccounts = $this->buildBankAccounts($xml);
-        } elseif (isset($xml->CREDITCARDMSGSRSV1)) {
-            $this->bankAccounts = $this->buildCreditAccounts($xml);
-        }
-
+        $this->bankAccounts = $this->buildBankAccounts($xml);
         // Set a helper if only one bank account
-        if (count($this->bankAccounts) === 1) {
+        if (count($this->bankAccounts) == 1) {
             $this->bankAccount = $this->bankAccounts[0];
         }
     }
@@ -81,59 +52,44 @@ class Ofx
      * Get the transactions that have been processed
      *
      * @return array
-     * @deprecated This will be removed in future versions
      */
     public function getTransactions()
     {
-        return $this->bankAccount->statement->transactions;
+        return $this->bankAccount->Statement->Transactions;
     }
 
     /**
-     * @param array $header
-     * @return Ofx
-     */
-    public function buildHeader(array $header)
-    {
-        $this->header = $header;
-
-        return $this;
-    }
-
-    /**
-     * @param SimpleXMLElement $xml
+     * @param $xml
      * @return SignOn
-     * @throws \Exception
      */
-    protected function buildSignOn(SimpleXMLElement $xml)
+    private function buildSignOn($xml)
     {
-        $signOn = new SignOn();
-        $signOn->status = $this->buildStatus($xml->STATUS);
-        $signOn->date = Utils::createDateTimeFromStr($xml->DTSERVER, true);
-        $signOn->language = $xml->LANGUAGE;
+        $SignOn = new SignOn();
+        $SignOn->status = $this->buildStatus($xml->STATUS);
+        $SignOn->date = $this->createDateTimeFromStr($xml->DTSERVER, true);
+        $SignOn->language = $xml->LANGUAGE;
 
-        $signOn->institute = new Institute();
-        $signOn->institute->name = $xml->FI->ORG;
-        $signOn->institute->id = $xml->FI->FID;
+        $SignOn->institute = new Institute();
+        $SignOn->institute->name = $xml->FI->ORG;
+        $SignOn->institute->id = $xml->FI->FID;
 
-        return $signOn;
+        return $SignOn;
     }
 
     /**
-     * @param SimpleXMLElement|null $xml
+     * @param $xml
      * @return array AccountInfo
      */
-    private function buildAccountInfo(SimpleXMLElement $xml = null)
+    private function buildAccountInfo($xml)
     {
-        if (null === $xml || !isset($xml->ACCTINFO)) {
-            return [];
-        }
+        if (!isset($xml->ACCTINFO)) return [];
 
         $accounts = [];
         foreach ($xml->ACCTINFO as $account) {
-            $accountInfo = new AccountInfo();
-            $accountInfo->desc = $account->DESC;
-            $accountInfo->number = $account->ACCTID;
-            $accounts[] = $accountInfo;
+            $AccountInfo = new AccountInfo();
+            $AccountInfo->desc = $account->DESC;
+            $AccountInfo->number = $account->ACCTID;
+            $accounts[] = $AccountInfo;
         }
 
         return $accounts;
@@ -142,217 +98,157 @@ class Ofx
     /**
      * @param SimpleXMLElement $xml
      * @return array
-     * @throws \Exception
-     */
-    private function buildCreditAccounts(SimpleXMLElement $xml)
-    {
-        // Loop through the bank accounts
-        $bankAccounts = [];
-
-        foreach ($xml->CREDITCARDMSGSRSV1->CCSTMTTRNRS as $accountStatement) {
-            $bankAccounts[] = $this->buildCreditAccount($accountStatement);
-        }
-        return $bankAccounts;
-    }
-
-    /**
-     * @param SimpleXMLElement $xml
-     * @return array
-     * @throws \Exception
      */
     private function buildBankAccounts(SimpleXMLElement $xml)
     {
         // Loop through the bank accounts
         $bankAccounts = [];
         foreach ($xml->BANKMSGSRSV1->STMTTRNRS as $accountStatement) {
-            foreach ($accountStatement->STMTRS as $statementResponse) {
-                $bankAccounts[] = $this->buildBankAccount($accountStatement->TRNUID, $statementResponse);
-            }
+            $bankAccounts[] = $this->buildBankAccount($accountStatement);
         }
         return $bankAccounts;
     }
 
     /**
-     * @param string $transactionUid
-     * @param SimpleXMLElement $statementResponse
+     * @param $xml
      * @return BankAccount
      * @throws \Exception
      */
-    private function buildBankAccount($transactionUid, SimpleXMLElement $statementResponse)
+    private function buildBankAccount($xml)
     {
-        $bankAccount = new BankAccount();
-        $bankAccount->transactionUid = $transactionUid;
-        $bankAccount->agencyNumber = $statementResponse->BANKACCTFROM->BRANCHID;
-        $bankAccount->accountNumber = $statementResponse->BANKACCTFROM->ACCTID;
-        $bankAccount->routingNumber = $statementResponse->BANKACCTFROM->BANKID;
-        $bankAccount->accountType = $statementResponse->BANKACCTFROM->ACCTTYPE;
-        $bankAccount->balance = $statementResponse->LEDGERBAL->BALAMT;
-        $bankAccount->balanceDate = Utils::createDateTimeFromStr(
-            $statementResponse->LEDGERBAL->DTASOF,
-            true
-        );
+        $Bank = new BankAccount();
+        $Bank->transactionUid = $xml->TRNUID;
+        $Bank->agencyNumber = $xml->STMTRS->BANKACCTFROM->BRANCHID;
+        $Bank->accountNumber = $xml->STMTRS->BANKACCTFROM->ACCTID;
+        $Bank->routingNumber = $xml->STMTRS->BANKACCTFROM->BANKID;
+        $Bank->accountType = $xml->STMTRS->BANKACCTFROM->ACCTTYPE;
+        $Bank->balance = $xml->STMTRS->LEDGERBAL->BALAMT;
+        $Bank->balanceDate = $xml->STMTRS->LEDGERBAL->DTASOF ?$this->createDateTimeFromStr($xml->STMTRS->LEDGERBAL->DTASOF, true) : '';
 
-        $bankAccount->statement = new Statement();
-        $bankAccount->statement->currency = $statementResponse->CURDEF;
+        $Bank->statement = new Statement();
+        $Bank->statement->currency = $xml->STMTRS->CURDEF;
+        $Bank->statement->startDate = $this->createDateTimeFromStr($xml->STMTRS->BANKTRANLIST->DTSTART);
+        $Bank->statement->endDate = $this->createDateTimeFromStr($xml->STMTRS->BANKTRANLIST->DTEND);
+        $Bank->statement->transactions = $this->buildTransactions($xml->STMTRS->BANKTRANLIST->STMTTRN);
 
-        $bankAccount->statement->startDate = Utils::createDateTimeFromStr(
-            $statementResponse->BANKTRANLIST->DTSTART
-        );
-
-        $bankAccount->statement->endDate = Utils::createDateTimeFromStr(
-            $statementResponse->BANKTRANLIST->DTEND
-        );
-
-        $bankAccount->statement->transactions = $this->buildTransactions(
-            $statementResponse->BANKTRANLIST->STMTTRN
-        );
-
-        return $bankAccount;
+        return $Bank;
     }
 
-    /**
-     * @param SimpleXMLElement $xml
-     * @return BankAccount
-     * @throws \Exception
-     */
-    private function buildCreditAccount(SimpleXMLElement $xml)
-    {
-        $nodeName = 'CCACCTFROM';
-        if (!isset($xml->CCSTMTRS->$nodeName)) {
-            $nodeName = 'BANKACCTFROM';
-        }
-
-        $creditAccount = new BankAccount();
-        $creditAccount->transactionUid = $xml->TRNUID;
-        $creditAccount->agencyNumber = $xml->CCSTMTRS->$nodeName->BRANCHID;
-        $creditAccount->accountNumber = $xml->CCSTMTRS->$nodeName->ACCTID;
-        $creditAccount->routingNumber = $xml->CCSTMTRS->$nodeName->BANKID;
-        $creditAccount->accountType = $xml->CCSTMTRS->$nodeName->ACCTTYPE;
-        $creditAccount->balance = $xml->CCSTMTRS->LEDGERBAL->BALAMT;
-        $creditAccount->balanceDate = Utils::createDateTimeFromStr($xml->CCSTMTRS->LEDGERBAL->DTASOF, true);
-
-        $creditAccount->statement = new Statement();
-        $creditAccount->statement->currency = $xml->CCSTMTRS->CURDEF;
-        $creditAccount->statement->startDate = Utils::createDateTimeFromStr($xml->CCSTMTRS->BANKTRANLIST->DTSTART);
-        $creditAccount->statement->endDate = Utils::createDateTimeFromStr($xml->CCSTMTRS->BANKTRANLIST->DTEND);
-        $creditAccount->statement->transactions = $this->buildTransactions($xml->CCSTMTRS->BANKTRANLIST->STMTTRN);
-
-        return $creditAccount;
-    }
-
-    /**
-     * @param SimpleXMLElement $transactions
-     * @return array
-     * @throws \Exception
-     */
-    private function buildTransactions(SimpleXMLElement $transactions)
+    private function buildTransactions($transactions)
     {
         $return = [];
         foreach ($transactions as $t) {
-            $transaction = new Transaction();
-            $transaction->type = (string) $t->TRNTYPE;
-            $transaction->date = Utils::createDateTimeFromStr($t->DTPOSTED);
-            if ('' !== (string) $t->DTUSER) {
-                $transaction->userInitiatedDate = Utils::createDateTimeFromStr($t->DTUSER);
-            }
-            $transaction->amount = Utils::createAmountFromStr($t->TRNAMT);
-            $transaction->uniqueId = (string) $t->FITID;
-            $transaction->name = (string) $t->NAME;
-            $transaction->memo = (string) $t->MEMO;
-            $transaction->sic = (string) $t->SIC;
-            // CHECKNUM
-            $transaction->checkNumber = (string) $t->CHECKNUM;
-            // REFNUM
-            $transaction->refNumber = (string) $t->REFNUM;
-            // EXTDNAME
-            $transaction->nameExtended = (string) $t->EXTDNAME;
-            // PAYEEID
-            $transaction->payeeId = (string) $t->PAYEEID;
-            // PAYEE
-            if(isset($t->PAYEE)) $transaction->payee = $this->buildPayee($t->PAYEE);
-            // BANKACCTTO
-            if(isset($t->BANKACCTTO)) $transaction->bankAccountTo = $this->buildBankAccountTo($t->BANKACCTTO);
-            // CCACCTTO
-            if(isset($t->CCACCTTO)) $transaction->cardAccountTo = $this->buildCardAccountTo($t->CCACCTTO);
-
-            $return[] = $transaction;
+            $Transaction = new Transaction();
+            $Transaction->type = (string)$t->TRNTYPE;
+            $Transaction->date = $this->createDateTimeFromStr($t->DTPOSTED);
+            $Transaction->amount = $this->createAmountFromStr($t->TRNAMT);
+            $Transaction->uniqueId = (string)$t->FITID;
+            $Transaction->name = (string)$t->NAME;
+            $Transaction->memo = (string)$t->MEMO;
+            $Transaction->sic = $t->SIC;
+            $Transaction->checkNumber = $t->CHECKNUM;
+            $return[] = $Transaction;
         }
 
         return $return;
     }
 
-    /**
-     * @param SimpleXMLElement $xml
-     * @return Status
-     */
-    private function buildStatus(SimpleXMLElement $xml)
+    private function buildStatus($xml)
     {
-        $status = new Status();
-        $status->code = $xml->CODE;
-        $status->severity = $xml->SEVERITY;
-        $status->message = $xml->MESSAGE;
+        $Status = new Status();
+        $Status->code = $xml->CODE;
+        $Status->severity = $xml->SEVERITY;
+        $Status->message = $xml->MESSAGE;
 
-        return $status;
+        return $Status;
     }
 
     /**
-     * Builds payee of transaction
-     * @param SimpleXMLElement $xml
-     * @return Payee
+     * Create a DateTime object from a valid OFX date format
+     *
+     * Supports:
+     * YYYYMMDDHHMMSS.XXX[gmt offset:tz name]
+     * YYYYMMDDHHMMSS.XXX
+     * YYYYMMDDHHMMSS
+     * YYYYMMDD
+     * YYYY-MM-DD
+     *
+     * @param  string  $dateString
+     * @param  boolean $ignoreErrors
+     * @return \DateTime | $dateString
      */
-    private function buildPayee(SimpleXMLElement $xml)
+    private function createDateTimeFromStr($dateString, $ignoreErrors = false)
     {
-        $payee = new Payee();
-        // name
-        $payee->name = (string) $xml->NAME;
-        // address
-        $address = [];
-        if((string) $xml->ADDR1) $address[] = (string) $xml->ADDR1;
-        if((string) $xml->ADDR2) $address[] = (string) $xml->ADDR2;
-        if((string) $xml->ADDR3) $address[] = (string) $xml->ADDR3;
-        if(count($address) > 0) $payee->address = $address;
+        $regex = "/"
+            . "(\d{4})[-]?(\d{2})[-]?(\d{2})?" // YYYYMMDD   YYYY-MM-DD          1,2,3
+            . "(?:(\d{2})(\d{2})(\d{2}))?" // HHMMSS   - optional  4,5,6
+            . "(?:\.(\d{3}))?" // .XXX     - optional  7
+            . "(?:\[(-?\d+)\:(\w{3}\]))?" // [-n:TZ]  - optional  8,9
+            . "/";
 
-        $payee->city = (string) $xml->CITY;
-        $payee->state = (string) $xml->STATE;
-        $payee->postalCode = (string) $xml->POSTALCODE;
-        $payee->country = (string) $xml->COUNTRY;
-        $payee->phone = (string) $xml->PHONE;
+        if (preg_match($regex, $dateString, $matches)) {
+            $year = (int)$matches[1];
+            $month = (int)$matches[2];
+            $day = (int)$matches[3];
+            $hour = isset($matches[4]) ? $matches[4] : 0;
+            $min = isset($matches[5]) ? $matches[5] : 0;
+            $sec = isset($matches[6]) ? $matches[6] : 0;
 
-        return $payee;
+            $format = $year . '-' . $month . '-' . $day . ' ' . $hour . ':' . $min . ':' . $sec;
+
+            try {
+                return new \DateTime($format);
+
+            } catch (\Exception $e) {
+
+                if ($ignoreErrors) {
+                    return null;
+                }
+
+                throw $e;
+            }
+        }
+
+        throw new \Exception("Failed to initialize DateTime for string: " . $dateString);
     }
 
     /**
-     * Builds corresponding bank account of transaction
-     * @param SimpleXMLElement $xml
-     * @return BankAccount
+     * Create a formated number in Float according to different locale options
+     *
+     * Supports:
+     * 000,00 and -000,00
+     * 0.000,00 and -0.000,00
+     * 0,000.00 and -0,000.00
+     * 000.00 and 000.00
+     *
+     * @param  string  $amountString
+     * @return float
      */
-    public function buildBankAccountTo(SimpleXMLElement $xml)
+    private function createAmountFromStr($amountString)
     {
-        $bankAccountTo = new BankAccount();
-        $bankAccountTo->routingNumber = (string) $xml->BANKID;
-        $bankAccountTo->agencyNumber = (string) $xml->BRANCHID;
-        $bankAccountTo->accountNumber = (string) $xml->ACCTID;
-        $bankAccountTo->accountType = (string) $xml->ACCTTYPE;
+        //000.00 or 0,000.00
+        if (preg_match("/^-?([0-9,]+)(\.?)([0-9]{2})$/", $amountString) == 1) {
+            $amountString = preg_replace(
+                array("/([,]+)/",
+                    "/\.?([0-9]{2})$/"
+                    ),
+                array("",
+                    ".$1"),
+                $amountString);
+        }
 
-        // remove other attrs
-        unset($bankAccountTo->balance, $bankAccountTo->balanceDate, $bankAccountTo->statement, $bankAccountTo->transactionUid);
+        //000,00 or 0.000,00
+        elseif (preg_match("/^-?([0-9\.]+,?[0-9]{2})$/", $amountString) == 1) {
+            $amountString = preg_replace(
+                array("/([\.]+)/",
+                    "/,?([0-9]{2})$/"
+                    ),
+                array("",
+                    ".$1"),
+                $amountString);
+        }
 
-        return $bankAccountTo;
+        return (float)$amountString;
     }
 
-    /**
-     * Builds corresponding credit card account of transaction
-     * @param SimpleXMLElement $xml
-     * @return BankAccount
-     */
-    public function buildCardAccountTo(SimpleXMLElement $xml)
-    {
-        $cardAccountTo = new BankAccount();
-        $cardAccountTo->accountNumber = (string) $xml->ACCTID;
-
-        // remove other attrs
-        unset($cardAccountTo->routingNumber, $cardAccountTo->agencyNumber, $cardAccountTo->accountType, $cardAccountTo->balance, $cardAccountTo->balanceDate, $cardAccountTo->statement, $cardAccountTo->transactionUid);
-
-        return $cardAccountTo;
-    }
 }

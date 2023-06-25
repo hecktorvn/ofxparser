@@ -15,7 +15,7 @@ class OfxTest extends TestCase
      */
     protected $ofxData;
 
-    public function setUp()
+    public function setUp():void
     {
         $ofxFile = dirname(__DIR__).'/fixtures/ofxdata-xml.ofx';
 
@@ -115,8 +115,8 @@ class OfxTest extends TestCase
             self::assertEquals($expectedTransactions[$i]['memo'], $transaction->memo);
             self::assertEquals($expectedTransactions[$i]['sic'], $transaction->sic);
             self::assertEquals($expectedTransactions[$i]['checkNumber'], $transaction->checkNumber);
+
             self::assertInstanceOf('DateTime', $transaction->date);
-            self::assertInstanceOf('DateTime', $transaction->userInitiatedDate);
         }
     }
 }

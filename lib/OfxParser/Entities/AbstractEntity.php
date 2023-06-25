@@ -9,13 +9,14 @@ abstract class AbstractEntity
      * to unify the API
      *
      * @param $name
-     * @return mixed|bool
+     * @return method | bool
      */
     public function __get($name)
     {
-        if (method_exists($this, lcfirst($name))) {
+        if(method_exists($this, lcfirst($name))) {
             return $this->{$name}();
         }
         return false;
     }
 }
+
