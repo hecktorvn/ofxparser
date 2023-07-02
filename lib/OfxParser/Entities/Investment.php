@@ -11,7 +11,7 @@ abstract class Investment extends AbstractEntity implements Inspectable, OfxLoad
      *
      * Since Traits are being used for multiple inheritance,
      * it can be challenging to know which properties exist
-     * in the entity. 
+     * in the entity.
      *
      * @return array array('prop_name' => 'prop_name', ...)
      */
@@ -33,4 +33,3 @@ abstract class Investment extends AbstractEntity implements Inspectable, OfxLoad
         throw new \Exception('loadOfx method not defined in class "' . get_class() . '"');
     }
 }
-
