@@ -55,7 +55,7 @@ class Ofx
      */
     public function getTransactions()
     {
-        return $this->bankAccount->Statement->Transactions;
+        return $this->bankAccount->statement->transactions;
     }
 
     /**
