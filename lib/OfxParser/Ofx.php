@@ -55,7 +55,7 @@ class Ofx
      */
     public function getTransactions()
     {
-        return $this->bankAccount->Statement->Transactions;
+        return $this->bankAccount->statement->transactions;
     }
 
     /**
@@ -82,7 +82,9 @@ class Ofx
      */
     private function buildAccountInfo($xml)
     {
-        if (!isset($xml->ACCTINFO)) return [];
+        if (!isset($xml->ACCTINFO)) {
+            return [];
+        }
 
         $accounts = [];
         foreach ($xml->ACCTINFO as $account) {
@@ -198,9 +200,7 @@ class Ofx
 
             try {
                 return new \DateTime($format);
-
             } catch (\Exception $e) {
-
                 if ($ignoreErrors) {
                     return null;
                 }
@@ -234,10 +234,9 @@ class Ofx
                     ),
                 array("",
                     ".$1"),
-                $amountString);
-        }
-
-        //000,00 or 0.000,00
+                $amountString
+            );
+        } //000,00 or 0.000,00
         elseif (preg_match("/^-?([0-9\.]+,?[0-9]{2})$/", $amountString) == 1) {
             $amountString = preg_replace(
                 array("/([\.]+)/",
@@ -245,10 +244,10 @@ class Ofx
                     ),
                 array("",
                     ".$1"),
-                $amountString);
+                $amountString
+            );
         }
 
         return (float)$amountString;
     }
-
 }

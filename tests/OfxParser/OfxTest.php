@@ -15,7 +15,7 @@ class OfxTest extends TestCase
      */
     protected $ofxData;
 
-    public function setUp():void
+    public function setUp(): void
     {
         $ofxFile = dirname(__DIR__).'/fixtures/ofxdata-xml.ofx';
 
