@@ -8,7 +8,10 @@ use OfxParser\Utils;
 /**
  * Fake class for DateTime callback.
  */
-class MyDateTime extends \DateTime { }
+class MyDateTime extends \DateTime
+{
+
+}
 
 /**
  * @covers OfxParser\Utils
@@ -75,7 +78,9 @@ class UtilsTest extends TestCase
         self::assertEquals(null, $DateTimeFive);
 
         // Test DateTime factory callback
-        Utils::$fnDateTimeFactory = function($format) { return new MyDateTime($format); };
+        Utils::$fnDateTimeFactory = function ($format) {
+            return new MyDateTime($format);
+        };
         $DateTimeSix = Utils::createDateTimeFromStr('20081005');
         self::assertEquals($expectedDateTime->format('Y-m-d'), $DateTimeSix->format('Y-m-d'));
         self::assertEquals('OfxParserTest\\MyDateTime', get_class($DateTimeSix));
