@@ -146,7 +146,7 @@ class Ofx
             $Transaction->amount = $this->createAmountFromStr($t->TRNAMT);
             $Transaction->uniqueId = (string)$t->FITID;
             $Transaction->name = (string)$t->NAME;
-            $Transaction->memo = (string)$t->MEMO;
+            $Transaction->memo = (array)$t->MEMO;
             $Transaction->sic = $t->SIC;
             $Transaction->checkNumber = $t->CHECKNUM;
             $return[] = $Transaction;
